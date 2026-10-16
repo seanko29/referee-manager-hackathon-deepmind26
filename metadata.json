@@ -1,0 +1,6 @@
+{
+  "name": "WHISTLE — AI Football Referee Simulator & Live VAR Desk",
+  "description": "High-pressure football referee career simulator and real-world VAR analysis desk powered by a Gemini 4 Argon Multi-Agent Swarm, Double Verification Loop, 1M IFAB Law Context, and K-Webtoon Dissent visuals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

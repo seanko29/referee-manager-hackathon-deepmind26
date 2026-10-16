@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Silkscreen', 'Noto Sans KR', 'Barlow Condensed', sans-serif;
+    --font-sans: 'Noto Sans KR', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'Silkscreen', 'JetBrains Mono', 'Noto Sans KR', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #181825;
+    color: #f8fafc;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.retro-box {
+  background-color: #fffbeb;
+  color: #1e1b4b;
+  border: 4px solid #1e1b4b;
+  box-shadow: 0 4px 0 #1e1b4b, inset 0 -3px 0 #fde68a;
+}
+
+.retro-dark-box {
+  background-color: #181826;
+  color: #f8fafc;
+  border: 4px solid #09090b;
+  box-shadow: 0 4px 0 #09090b, inset 0 2px 0 rgba(255, 255, 255, 0.12);
+}
+
+.retro-btn {
+  border: 3px solid #111827;
+  box-shadow: 0 4px 0 #111827;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.retro-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 #111827;
+}
+
+.retro-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #111827;
+}
