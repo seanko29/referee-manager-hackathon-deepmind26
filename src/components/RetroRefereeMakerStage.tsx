@@ -30,6 +30,7 @@ interface RetroRefereeMakerStageProps {
   onGeneratePortrait: () => void;
   onStartMatch: () => void;
   onOpenVarDesk: () => void;
+  onOpenDemoModal?: () => void;
 }
 
 const ALL_LEAGUE_IDS: LeagueId[] = [
@@ -61,6 +62,7 @@ export const RetroRefereeMakerStage: React.FC<RetroRefereeMakerStageProps> = ({
   onGeneratePortrait,
   onStartMatch,
   onOpenVarDesk,
+  onOpenDemoModal,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const avatarCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -627,6 +629,15 @@ export const RetroRefereeMakerStage: React.FC<RetroRefereeMakerStageProps> = ({
             >
               🖥️ Live VAR Desk
             </button>
+            {onOpenDemoModal && (
+              <button
+                type="button"
+                onClick={onOpenDemoModal}
+                className="w-full sm:w-auto py-3.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs retro-btn cursor-pointer whitespace-nowrap"
+              >
+                🎬 Demo GIF &amp; Video
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -155,6 +155,7 @@ export default function App() {
 
   const [showTelemetryDrawer, setShowTelemetryDrawer] = useState<boolean>(false);
   const [showRulesGuide, setShowRulesGuide] = useState<boolean>(false);
+  const [showDemoModal, setShowDemoModal] = useState<boolean>(false);
 
   // Retro Referee Maker Customizer State
   const [refereeName, setRefereeName] = useState<string>('Min-jun Kim');
@@ -177,6 +178,8 @@ export default function App() {
   const [evaluations, setEvaluations] = useState<CallEvaluationResult[]>([]);
   const [varHintsRemaining, setVarHintsRemaining] = useState<number>(3);
   const [showPreCallVarHint, setShowPreCallVarHint] = useState<boolean>(false);
+  const [isTopHudCollapsed, setIsTopHudCollapsed] = useState<boolean>(false);
+  const [isBottomHudCollapsed, setIsBottomHudCollapsed] = useState<boolean>(false);
 
   // Live FM Pitch Playback State (Starts at t=0 so players run & pass in real-time!)
   const [pitchTime, setPitchTime] = useState<number>(0);
@@ -789,6 +792,15 @@ export default function App() {
 
           <button
             type="button"
+            data-testid="header-demo-video-btn"
+            onClick={() => setShowDemoModal(true)}
+            className="px-2 py-1 rounded bg-rose-500 hover:bg-rose-400 text-white border-2 border-[#09090B] text-xs font-extrabold cursor-pointer whitespace-nowrap"
+          >
+            🎬 Demo GIF / Video
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowTelemetryDrawer((s) => !s)}
             className="px-2 py-1 rounded bg-sky-400 text-[#09090B] border-2 border-[#09090B] text-xs font-extrabold cursor-pointer whitespace-nowrap"
           >
@@ -804,6 +816,80 @@ export default function App() {
           </button>
         </nav>
       </header>
+
+      {/* Demo GIF & MP4 Video Preview + Download Modal (For Hackathon Submission & README!) */}
+      {showDemoModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Gameplay Demo GIF and Video"
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div className="w-full max-w-4xl rounded-xl retro-box p-4 sm:p-5 space-y-3 text-[#09090B]">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#09090B] pb-2">
+              <div>
+                <h2 className="text-base sm:text-lg font-extrabold text-rose-600">
+                  🎬 WHISTLE — GAMEPLAY DEMO GIF &amp; MP4 VIDEO
+                </h2>
+                <p className="text-xs font-bold text-slate-700">
+                  Saved in <code className="bg-slate-200 px-1 rounded">public/demo-gameplay.gif</code> (embedded in <code className="bg-slate-200 px-1 rounded">README.md</code>) and <code className="bg-slate-200 px-1 rounded">public/demo-gameplay.mp4</code>!
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/demo-gameplay.gif"
+                  download="whistle-demo-gameplay.gif"
+                  className="px-3 py-1.5 rounded bg-emerald-400 hover:bg-emerald-300 text-[#09090B] font-extrabold text-xs border-2 border-[#09090B] shadow-[0_2px_0_#09090B]"
+                >
+                  ⬇ Download .GIF (4.3 MB · With Click Cursor)
+                </a>
+                <a
+                  href="/demo-gameplay.mp4"
+                  download="whistle-demo-gameplay.mp4"
+                  className="px-3 py-1.5 rounded bg-sky-400 hover:bg-sky-300 text-[#09090B] font-extrabold text-xs border-2 border-[#09090B] shadow-[0_2px_0_#09090B]"
+                >
+                  ⬇ Download .MP4 Video (2.1 MB · With Click Cursor)
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowDemoModal(false)}
+                  className="px-3 py-1.5 rounded bg-amber-400 hover:bg-amber-300 text-[#09090B] font-extrabold text-xs border-2 border-[#09090B] cursor-pointer"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-2.5 rounded-lg bg-[#181825] border-2 border-[#09090B] space-y-1.5">
+                <div className="text-xs font-extrabold text-amber-300">
+                  🖼️ Animated Gameplay GIF (Embedded in README.md)
+                </div>
+                <img
+                  src="/demo-gameplay.gif"
+                  alt="WHISTLE Animated Gameplay Demo GIF"
+                  className="w-full rounded border-2 border-[#09090B]"
+                />
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-[#181825] border-2 border-[#09090B] space-y-1.5">
+                <div className="text-xs font-extrabold text-sky-300">
+                  🎥 Full HD MP4 Demo Video (For YouTube / Google Drive Link)
+                </div>
+                <video
+                  src="/demo-gameplay.mp4"
+                  controls
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full rounded border-2 border-[#09090B]"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Interactive Score & Decision Guide Popover Modal */}
       {showRulesGuide && (
@@ -892,6 +978,7 @@ export default function App() {
           onGeneratePortrait={handleGeneratePortrait}
           onStartMatch={handleStartMatch}
           onOpenVarDesk={() => setActiveTab('var_desk')}
+          onOpenDemoModal={() => setShowDemoModal(true)}
         />
       )}
 
@@ -900,86 +987,127 @@ export default function App() {
          ===================================================================== */}
       {activeTab === 'career_match' && careerStage === 'in_match' && (
         <>
-          {/* Top-Center Retro Cream Situation Dialogue Box with Direct Play Switcher & Next Play Button */}
-          <div className="fixed top-14 left-1/2 -translate-x-1/2 z-20 w-[90%] max-w-md pointer-events-auto">
-            <div className="px-3 py-2 rounded-xl retro-box space-y-1.5">
-              {/* Top Row: Play Tabs (1~5) + VAR Hint + Direct Next Button */}
-              <div className="flex flex-wrap items-center justify-between gap-1 border-b-2 border-[#09090B]/15 pb-1">
-                <div className="flex flex-wrap items-center gap-1">
-                  {incidents.map((inc, idx) => {
-                    const shortScore =
-                      inc.context.score.match(/\d+\s*-\s*\d+/)?.[0]?.replace(/\s+/g, '') ||
-                      inc.context.score;
-                    return (
+          {/* Top-Center Retro Cream Situation Dialogue Box with Direct Play Switcher, Next Play & [-] / [+] Collapse Toggle */}
+          <div className="fixed top-14 left-1/2 -translate-x-1/2 z-20 w-[90%] max-w-md pointer-events-auto flex justify-center">
+            {isTopHudCollapsed ? (
+              <div className="px-2.5 py-1 rounded-xl retro-box flex items-center gap-2">
+                <span className="text-xs font-extrabold text-rose-600">
+                  ⚡ Play {currentIncidentIdx + 1}/5 (
+                  {currentIncident.context.score.match(/\d+\s*-\s*\d+/)?.[0]?.replace(/\s+/g, '') ||
+                    currentIncident.context.score}
+                  )
+                </span>
+                <button
+                  type="button"
+                  data-testid="top-next-incident-btn"
+                  onClick={handleNextIncident}
+                  className="px-2 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-[#09090B] font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer"
+                >
+                  {currentIncidentIdx + 1 < incidents.length
+                    ? 'Next Play ▶'
+                    : 'Final Report ▶'}
+                </button>
+                <button
+                  type="button"
+                  data-testid="situation-box-toggle-btn"
+                  aria-label="Expand Situation and Play Switcher Box"
+                  onClick={() => setIsTopHudCollapsed(false)}
+                  className="px-1.5 py-0.5 rounded bg-emerald-400 hover:bg-emerald-300 text-[#09090B] font-mono text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer"
+                >
+                  [+] Show Info
+                </button>
+              </div>
+            ) : (
+              <div className="w-full px-3 py-2 rounded-xl retro-box space-y-1.5">
+                {/* Top Row: Play Tabs (1~5) + VAR Hint + Direct Next Button + [-] Collapse Button */}
+                <div className="flex flex-wrap items-center justify-between gap-1 border-b-2 border-[#09090B]/15 pb-1">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {incidents.map((inc, idx) => {
+                      const shortScore =
+                        inc.context.score.match(/\d+\s*-\s*\d+/)?.[0]?.replace(/\s+/g, '') ||
+                        inc.context.score;
+                      return (
+                        <button
+                          key={inc.id}
+                          type="button"
+                          onClick={() => {
+                            soundEngine.playWhistle(0.25);
+                            setCurrentIncidentIdx(idx);
+                            setLatestEvaluation(null);
+                            setPendingInitialCall(null);
+                            setOfrModalOpen(false);
+                            setShowPreCallVarHint(false);
+                            setLiveLegalReasoning(null);
+                            setDecisionTimer(3.0);
+                            setPitchTime(0);
+                            setIsPitchPlaying(true);
+                          }}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
+                            idx === currentIncidentIdx
+                              ? 'bg-rose-600 text-white'
+                              : 'bg-white text-slate-700 hover:bg-amber-100'
+                          }`}
+                        >
+                          Play {idx + 1} ({shortScore})
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {!showPreCallVarHint && varHintsRemaining > 0 && !latestEvaluation && (
                       <button
-                        key={inc.id}
                         type="button"
                         onClick={() => {
-                          soundEngine.playWhistle(0.25);
-                          setCurrentIncidentIdx(idx);
-                          setLatestEvaluation(null);
-                          setPendingInitialCall(null);
-                          setOfrModalOpen(false);
-                          setShowPreCallVarHint(false);
-                          setLiveLegalReasoning(null);
-                          setDecisionTimer(3.0);
-                          setPitchTime(0);
-                          setIsPitchPlaying(true);
+                          setShowPreCallVarHint(true);
+                          setVarHintsRemaining((n) => Math.max(0, n - 1));
                         }}
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
-                          idx === currentIncidentIdx
-                            ? 'bg-rose-600 text-white'
-                            : 'bg-white text-slate-700 hover:bg-amber-100'
-                        }`}
+                        className="px-2 py-0.5 rounded bg-sky-400 hover:bg-sky-300 text-[#09090B] font-extrabold text-[11px] border-2 border-[#09090B] cursor-pointer"
                       >
-                        Play {idx + 1} ({shortScore})
+                        💡 VAR Hint ({varHintsRemaining})
                       </button>
-                    );
-                  })}
-                </div>
+                    )}
 
-                <div className="flex items-center gap-1.5">
-                  {!showPreCallVarHint && varHintsRemaining > 0 && !latestEvaluation && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowPreCallVarHint(true);
-                        setVarHintsRemaining((n) => Math.max(0, n - 1));
-                      }}
-                      className="px-2 py-0.5 rounded bg-sky-400 hover:bg-sky-300 text-[#09090B] font-extrabold text-[11px] border-2 border-[#09090B] cursor-pointer"
+                      data-testid="top-next-incident-btn"
+                      onClick={handleNextIncident}
+                      className="px-2 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-[#09090B] font-extrabold text-[11px] border-2 border-[#09090B] shadow-[0_2px_0_#09090B] cursor-pointer"
                     >
-                      💡 VAR Hint ({varHintsRemaining})
+                      {currentIncidentIdx + 1 < incidents.length
+                        ? 'Next Play ▶'
+                        : 'Final Report ▶'}
                     </button>
-                  )}
 
-                  <button
-                    type="button"
-                    data-testid="top-next-incident-btn"
-                    onClick={handleNextIncident}
-                    className="px-2.5 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-[#09090B] font-extrabold text-[11px] border-2 border-[#09090B] shadow-[0_2px_0_#09090B] cursor-pointer"
-                  >
-                    {currentIncidentIdx + 1 < incidents.length
-                      ? 'Next Play ▶'
-                      : 'Final Report ▶'}
-                  </button>
+                    <button
+                      type="button"
+                      data-testid="situation-box-toggle-btn"
+                      aria-label="Collapse Situation and Play Switcher Box"
+                      title="Hide Play Switcher & Situation Details (-)"
+                      onClick={() => setIsTopHudCollapsed(true)}
+                      className="px-1.5 py-0.5 rounded bg-rose-500 hover:bg-rose-400 text-white font-mono text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer"
+                    >
+                      [-]
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Situation Description */}
-              <div className="space-y-0.5">
-                <div className="text-xs font-extrabold text-rose-600 leading-tight">
-                  ⚡ {currentIncident.title}
-                </div>
-                <p className="text-xs font-bold text-[#1E1B4B] leading-snug">
-                  {currentIncident.context.situation_summary}
-                </p>
-                {showPreCallVarHint && (
-                  <p className="text-xs font-extrabold text-sky-700 pt-0.5">
-                    {currentIncident.auditor_check.var_hint}
+                {/* Situation Description */}
+                <div className="space-y-0.5">
+                  <div className="text-xs font-extrabold text-rose-600 leading-tight">
+                    ⚡ {currentIncident.title}
+                  </div>
+                  <p className="text-xs font-bold text-[#1E1B4B] leading-snug">
+                    {currentIncident.context.situation_summary}
                   </p>
-                )}
+                  {showPreCallVarHint && (
+                    <p className="text-xs font-extrabold text-sky-700 pt-0.5">
+                      {currentIncident.auditor_check.var_hint}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom-Center STEP 1: Retro 5-Card Referee Action Hotbar + Attacker/Defender Target Selector */}
@@ -988,9 +1116,13 @@ export default function App() {
               aria-label="Referee Decision HUD"
               className="fixed bottom-3 left-1/2 -translate-x-1/2 z-20 w-[96%] max-w-4xl pointer-events-auto"
             >
-              <div className="p-3 rounded-xl retro-box space-y-2">
-                {/* Row 1: Target Player Selector (Choose whether to give Foul / Yellow / Red Card to Attacker vs Defender!) */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b-2 border-[#09090B]/15">
+              <div className="p-2.5 sm:p-3 rounded-xl retro-box space-y-2">
+                {/* Row 1: Target Player Selector + [-] / [+] Toggle */}
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-2 ${
+                    isBottomHudCollapsed ? '' : 'pb-1.5 border-b-2 border-[#09090B]/15'
+                  }`}
+                >
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="px-2 py-0.5 rounded bg-[#09090B] text-amber-300 font-extrabold text-[11px]">
                       🎯 STEP 1: TARGET PLAYER FOR CARD / FOUL
@@ -1029,11 +1161,24 @@ export default function App() {
                     <span data-testid="decision-countdown" className="text-rose-600">
                       {decisionTimer > 0 ? `${decisionTimer.toFixed(1)}s` : 'CALL NOW'}
                     </span>
+                    <button
+                      type="button"
+                      data-testid="decision-bar-toggle-btn"
+                      onClick={() => setIsBottomHudCollapsed((c) => !c)}
+                      className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
+                        isBottomHudCollapsed
+                          ? 'bg-amber-400 text-[#09090B]'
+                          : 'bg-rose-500 text-white hover:bg-rose-400'
+                      }`}
+                    >
+                      {isBottomHudCollapsed ? '[+] Cards' : '[-] Hide'}
+                    </button>
                   </div>
                 </div>
 
-                {/* Row 2: 5 Referee Call Buttons (Entire card + bottom action buttons clickable on all 5 cards!) */}
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {/* Row 2: 5 Referee Call Buttons (Collapsible via [-] / [+]) */}
+                {!isBottomHudCollapsed && (
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {GAME_HOTBAR_BUTTONS.map((btn) => {
                     const targetLabel =
                       selectedTargetRole === 'attacker'
@@ -1169,7 +1314,8 @@ export default function App() {
                       </div>
                     );
                   })}
-                </div>
+                  </div>
+                )}
               </div>
             </section>
           )}

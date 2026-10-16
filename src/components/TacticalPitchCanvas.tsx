@@ -61,6 +61,8 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
   const [camMode, setCamMode] = useState<FmCameraMode>('overview');
   const [camZoom, setCamZoom] = useState<number>(1.0);
   const [showCloseUpInset, setShowCloseUpInset] = useState<boolean>(true);
+  const [isCamSpeedCollapsed, setIsCamSpeedCollapsed] = useState<boolean>(false);
+  const [isMetersCollapsed, setIsMetersCollapsed] = useState<boolean>(false);
 
   const pixelCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -378,17 +380,6 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           ctx.strokeStyle = '#EF4444';
           ctx.lineWidth = 3;
           ctx.stroke();
-
-          // Callout Badge right above the Handball Block
-          ctx.fillStyle = '#DC2626';
-          ctx.fillRect(ox - 94, oy - 98, 188, 20);
-          ctx.strokeStyle = '#09090B';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(ox - 94, oy - 98, 188, 20);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('✋💥 95° ARM HANDBALL BLOCK!', ox, oy - 84);
         } else if (isSimulationDive) {
           // 1.4m Zero-Contact Gap Line between Diver (#11) and Defender (#19)
           ctx.setLineDash([5, 5]);
@@ -399,18 +390,6 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           ctx.lineTo(vx, vy - 20);
           ctx.stroke();
           ctx.setLineDash([]);
-
-          const midGapX = (ox + vx) / 2;
-          const midGapY = Math.min(oy, vy) - 82;
-          ctx.fillStyle = '#0284C7';
-          ctx.fillRect(midGapX - 88, midGapY, 176, 20);
-          ctx.strokeStyle = '#09090B';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(midGapX - 88, midGapY, 176, 20);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('📏 1.4m GAP · ZERO CONTACT DIVE!', midGapX, midGapY + 14);
         } else if (isAdvantagePlay) {
           // 3v2 Counter-Attack Through-Ball Line to Winger #7
           const winger7 = frame.home.find((p) => p.id === 7);
@@ -425,16 +404,6 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             ctx.lineTo(wx, wy - 10);
             ctx.stroke();
             ctx.setLineDash([]);
-
-            ctx.fillStyle = '#15803D';
-            ctx.fillRect(wx - 88, wy - 92, 176, 20);
-            ctx.strokeStyle = '#09090B';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(wx - 88, wy - 92, 176, 20);
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('⚡ 3v2 BREAKAWAY ADVANTAGE!', wx, wy - 78);
           }
         } else if (isShirtPull) {
           // Stretched red jersey tug line between Defender (#13) and Winger (#7)
@@ -444,27 +413,6 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           ctx.moveTo(ox, oy - 32);
           ctx.lineTo(vx, vy - 32);
           ctx.stroke();
-
-          ctx.fillStyle = '#B91C1C';
-          ctx.fillRect(vx - 88, vy - 94, 176, 20);
-          ctx.strokeStyle = '#09090B';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(vx - 88, vy - 94, 176, 20);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('👕 TWO-HANDED SHIRT PULL (SPA)!', vx, vy - 80);
-        } else {
-          // PLAY 1 (DOGSO 1v1 BOX TAKEDOWN) Badge
-          ctx.fillStyle = '#DC2626';
-          ctx.fillRect(vx - 92, vy - 94, 184, 20);
-          ctx.strokeStyle = '#09090B';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(vx - 92, vy - 94, 184, 20);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('💥 1v1 BOX TAKEDOWN (DOGSO)!', vx, vy - 80);
         }
         ctx.restore();
       }
@@ -1157,152 +1105,237 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           className="w-full h-full object-fill block pixelated"
         />
 
-        {/* Top-Left FM Camera Roam & Speed (0.5x / 1x / 1.5x / 2x) Controls */}
-        <div className="absolute top-14 left-3 z-10 flex flex-col items-start gap-1.5 max-w-[330px]">
-          {/* Row 1: FM Camera Roam Modes & Zoom */}
-          <div className="flex flex-wrap items-center gap-1 bg-[#FFFBEB]/95 border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-1">
-            <span className="text-[10px] font-extrabold text-[#1E1B4B]">
-              🎥 CAM:
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setCamMode('overview');
-                setCamZoom(1.0);
-                camPanRef.current = { x: 0, y: 0 };
-              }}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
-                camMode === 'overview' ? 'bg-amber-400 text-[#09090B]' : 'bg-white text-slate-700'
-              }`}
-            >
-              🏟️ Overview
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCamMode('follow_ball');
-                setCamZoom(1.45);
-              }}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
-                camMode === 'follow_ball'
-                  ? 'bg-amber-400 text-[#09090B]'
-                  : 'bg-white text-slate-700'
-              }`}
-            >
-              ⚽ Follow Ball
-            </button>
-            <button
-              type="button"
-              onClick={() => setCamZoom((z) => Math.min(2.2, Number((z + 0.25).toFixed(2))))}
-              className="px-1.5 py-0.5 rounded bg-sky-300 text-[#09090B] text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer"
-            >
-              🔍+
-            </button>
-            <button
-              type="button"
-              onClick={() => setCamZoom((z) => Math.max(0.85, Number((z - 0.25).toFixed(2))))}
-              className="px-1.5 py-0.5 rounded bg-sky-300 text-[#09090B] text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer"
-            >
-              🔎-
-            </button>
-          </div>
-
-          {/* Row 2: Match Speed Selector (0.5x / 1.0x / 1.5x / 2.0x) + Play/Pause */}
-          <div className="flex flex-wrap items-center gap-1 bg-[#FFFBEB]/95 border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-1">
-            <span className="text-[10px] font-extrabold text-[#1E1B4B]">
-              ⏩ SPEED:
-            </span>
-            {[0.5, 1.0, 1.5, 2.0].map((spd) => (
+        {/* Top-Left Collapsible FM Camera, Zoom & Speed (0.5x / 1x / 1.5x / 2x) Controls with [-] / [+] Toggle */}
+        <div className="absolute top-14 left-3 z-10 flex flex-col items-start gap-1.5">
+          {isCamSpeedCollapsed ? (
+            <div className="flex items-center gap-1 bg-[#FFFBEB]/95 border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-1 whitespace-nowrap">
               <button
-                key={spd}
                 type="button"
-                onClick={() => onSpeedChange(spd)}
-                className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
-                  playbackSpeed === spd
-                    ? 'bg-emerald-400 text-[#09090B]'
-                    : 'bg-white text-slate-700 hover:bg-slate-100'
+                data-testid="cam-speed-toggle-btn"
+                aria-label="Expand Camera, Zoom, and Speed Controls"
+                onClick={() => setIsCamSpeedCollapsed(false)}
+                className="px-2 py-0.5 rounded bg-amber-400 hover:bg-amber-300 text-[#09090B] font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer flex items-center gap-1"
+              >
+                <span className="font-mono font-black">[+]</span>
+                <span>🎥 CAM · 🔍 ZOOM · ⏩ {playbackSpeed}x</span>
+              </button>
+              <button
+                type="button"
+                data-testid="closeup-cam-toggle-btn"
+                onClick={() => setShowCloseUpInset((s) => !s)}
+                className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer ${
+                  showCloseUpInset
+                    ? 'bg-amber-300 text-[#09090B]'
+                    : 'bg-white text-slate-700'
                 }`}
               >
-                {spd}x
+                {showCloseUpInset ? '[-] Close-Up' : '[+] Close-Up'}
               </button>
-            ))}
+            </div>
+          ) : (
+            <div className="bg-[#FFFBEB]/95 border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-1 space-y-1 whitespace-nowrap">
+              {/* Row 1: FM Camera Roam Modes, Zoom & [-] Collapse Toggle */}
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-extrabold text-[#1E1B4B]">
+                    🎥 CAM:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCamMode('overview');
+                      setCamZoom(1.0);
+                      camPanRef.current = { x: 0, y: 0 };
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
+                      camMode === 'overview'
+                        ? 'bg-amber-400 text-[#09090B]'
+                        : 'bg-white text-slate-700'
+                    }`}
+                  >
+                    🏟️ Overview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCamMode('follow_ball');
+                      setCamZoom(1.45);
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
+                      camMode === 'follow_ball'
+                        ? 'bg-amber-400 text-[#09090B]'
+                        : 'bg-white text-slate-700'
+                    }`}
+                  >
+                    ⚽ Follow Ball
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Zoom In"
+                    onClick={() =>
+                      setCamZoom((z) => Math.min(2.2, Number((z + 0.25).toFixed(2))))
+                    }
+                    className="px-1.5 py-0.5 rounded bg-sky-300 text-[#09090B] text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer"
+                  >
+                    🔍+
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Zoom Out"
+                    onClick={() =>
+                      setCamZoom((z) => Math.max(0.85, Number((z - 0.25).toFixed(2))))
+                    }
+                    className="px-1.5 py-0.5 rounded bg-sky-300 text-[#09090B] text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer"
+                  >
+                    🔎-
+                  </button>
+                </div>
 
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              className="px-1.5 py-0.5 rounded bg-white text-[#09090B] font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer"
-            >
-              {isPlaying ? '⏸' : '▶'}
-            </button>
+                <button
+                  type="button"
+                  data-testid="cam-speed-toggle-btn"
+                  aria-label="Collapse Camera, Zoom, and Speed Controls"
+                  title="Hide Camera, Zoom & Speed Controls (-)"
+                  onClick={() => setIsCamSpeedCollapsed(true)}
+                  className="px-1.5 py-0.5 rounded bg-rose-500 hover:bg-rose-400 text-white font-mono text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer"
+                >
+                  [-]
+                </button>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => setShowCloseUpInset((s) => !s)}
-              className="px-1.5 py-0.5 rounded bg-amber-300 text-[#09090B] font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer"
-            >
-              Close-Up
-            </button>
-          </div>
+              {/* Row 2: Match Speed Selector (0.5x / 1.0x / 1.5x / 2.0x) + Play/Pause + Close-Up Toggle */}
+              <div className="flex items-center justify-between gap-1 pt-0.5 border-t border-[#09090B]/15">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-extrabold text-[#1E1B4B]">
+                    ⏩ SPEED:
+                  </span>
+                  {[0.5, 1.0, 1.5, 2.0].map((spd) => (
+                    <button
+                      key={spd}
+                      type="button"
+                      onClick={() => onSpeedChange(spd)}
+                      className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-extrabold border-2 border-[#09090B] cursor-pointer ${
+                        playbackSpeed === spd
+                          ? 'bg-emerald-400 text-[#09090B]'
+                          : 'bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {spd}x
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={onTogglePlay}
+                    className="px-1.5 py-0.5 rounded bg-white text-[#09090B] font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer"
+                  >
+                    {isPlaying ? '⏸' : '▶'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  data-testid="closeup-cam-toggle-btn"
+                  onClick={() => setShowCloseUpInset((s) => !s)}
+                  className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer ${
+                    showCloseUpInset
+                      ? 'bg-amber-300 text-[#09090B]'
+                      : 'bg-white text-slate-700'
+                  }`}
+                >
+                  {showCloseUpInset ? '[-] Close-Up' : '[+] Close-Up'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Top-Right Compact Retro Pixel Status Meters (STAMINA / RESPECT / STRESS) */}
+        {/* Top-Right Collapsible Retro Pixel Status Meters (STAMINA / RESPECT / STRESS) with [-] / [+] Toggle */}
         <div
           aria-label="Referee Stamina Respect Stress Meters"
-          className="pointer-events-none absolute top-14 right-3 z-10 w-40 sm:w-44 space-y-1"
+          className="absolute top-14 right-3 z-10 flex flex-col items-end space-y-1"
         >
-          <div className="flex items-center gap-1.5 bg-[#FFFBEB] border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-0.5">
-            <span className="w-4 h-4 rounded bg-emerald-500 border border-[#09090B] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-              ⚡
-            </span>
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-[9px] font-extrabold text-[#09090B] leading-none mb-0.5">
-                <span>STAMINA</span>
-                <span className="font-mono tabular-nums">{staminaPercent}%</span>
+          {isMetersCollapsed ? (
+            <button
+              type="button"
+              data-testid="status-meters-toggle-btn"
+              onClick={() => setIsMetersCollapsed(false)}
+              className="px-2 py-1 rounded-lg bg-[#FFFBEB]/95 border-3 border-[#09090B] shadow-[0_3px_0_#09090B] text-[10px] font-extrabold text-[#09090B] cursor-pointer flex items-center gap-1"
+            >
+              <span className="font-mono font-black">[+]</span>
+              <span>⚡ Stats ({respectPercent}%)</span>
+            </button>
+          ) : (
+            <div className="w-40 sm:w-44 space-y-1">
+              <div className="flex items-center justify-between bg-[#181825] text-white border-2 border-[#09090B] rounded-md px-2 py-0.5">
+                <span className="text-[9px] font-extrabold tracking-wide text-amber-300">
+                  ⚡ REF METERS
+                </span>
+                <button
+                  type="button"
+                  data-testid="status-meters-toggle-btn"
+                  onClick={() => setIsMetersCollapsed(true)}
+                  className="px-1 rounded bg-rose-500 hover:bg-rose-400 text-white font-mono text-[9px] font-extrabold cursor-pointer"
+                >
+                  [-]
+                </button>
               </div>
-              <div className="w-full h-1.5 bg-slate-200 border border-[#09090B] rounded-sm overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 origin-left"
-                  style={{ transform: `scaleX(${staminaPercent / 100})` }}
-                />
-              </div>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-1.5 bg-[#FFFBEB] border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-0.5">
-            <span className="w-4 h-4 rounded bg-rose-500 border border-[#09090B] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-              ★
-            </span>
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-[9px] font-extrabold text-[#09090B] leading-none mb-0.5">
-                <span>RESPECT</span>
-                <span className="font-mono tabular-nums">{respectPercent}%</span>
+              <div className="flex items-center gap-1.5 bg-[#FFFBEB] border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-0.5">
+                <span className="w-4 h-4 rounded bg-emerald-500 border border-[#09090B] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  ⚡
+                </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between text-[9px] font-extrabold text-[#09090B] leading-none mb-0.5">
+                    <span>STAMINA</span>
+                    <span className="font-mono tabular-nums">{staminaPercent}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 border border-[#09090B] rounded-sm overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 origin-left"
+                      style={{ transform: `scaleX(${staminaPercent / 100})` }}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="w-full h-1.5 bg-slate-200 border border-[#09090B] rounded-sm overflow-hidden">
-                <div
-                  className="h-full bg-rose-500 origin-left"
-                  style={{ transform: `scaleX(${respectPercent / 100})` }}
-                />
-              </div>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-1.5 bg-[#FFFBEB] border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-0.5">
-            <span className="w-4 h-4 rounded bg-sky-500 border border-[#09090B] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-              !
-            </span>
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-[9px] font-extrabold text-[#09090B] leading-none mb-0.5">
-                <span>STRESS</span>
-                <span className="font-mono tabular-nums">{stressPercent}%</span>
+              <div className="flex items-center gap-1.5 bg-[#FFFBEB] border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-0.5">
+                <span className="w-4 h-4 rounded bg-rose-500 border border-[#09090B] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  ★
+                </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between text-[9px] font-extrabold text-[#09090B] leading-none mb-0.5">
+                    <span>RESPECT</span>
+                    <span className="font-mono tabular-nums">{respectPercent}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 border border-[#09090B] rounded-sm overflow-hidden">
+                    <div
+                      className="h-full bg-rose-500 origin-left"
+                      style={{ transform: `scaleX(${respectPercent / 100})` }}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="w-full h-1.5 bg-slate-200 border border-[#09090B] rounded-sm overflow-hidden">
-                <div
-                  className="h-full bg-sky-500 origin-left"
-                  style={{ transform: `scaleX(${stressPercent / 100})` }}
-                />
+
+              <div className="flex items-center gap-1.5 bg-[#FFFBEB] border-3 border-[#09090B] shadow-[0_3px_0_#09090B] rounded-lg px-2 py-0.5">
+                <span className="w-4 h-4 rounded bg-sky-500 border border-[#09090B] flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  !
+                </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between text-[9px] font-extrabold text-[#09090B] leading-none mb-0.5">
+                    <span>STRESS</span>
+                    <span className="font-mono tabular-nums">{stressPercent}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 border border-[#09090B] rounded-sm overflow-hidden">
+                    <div
+                      className="h-full bg-sky-500 origin-left"
+                      style={{ transform: `scaleX(${stressPercent / 100})` }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
