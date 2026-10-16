@@ -180,6 +180,9 @@ export default function App() {
   const [showPreCallVarHint, setShowPreCallVarHint] = useState<boolean>(false);
   const [isTopHudCollapsed, setIsTopHudCollapsed] = useState<boolean>(false);
   const [isBottomHudCollapsed, setIsBottomHudCollapsed] = useState<boolean>(false);
+  const [showSituationDetails, setShowSituationDetails] = useState<boolean>(false);
+  const [showRulebookDetails, setShowRulebookDetails] = useState<boolean>(false);
+  const [isMasterOverruled, setIsMasterOverruled] = useState<boolean>(false);
 
   // Live FM Pitch Playback State (Starts at t=0 so players run & pass in real-time!)
   const [pitchTime, setPitchTime] = useState<number>(0);
@@ -358,6 +361,8 @@ export default function App() {
       }
 
       setPitchTime(currentIncident.contact.frame);
+      setShowRulebookDetails(false);
+      setIsMasterOverruled(false);
 
       const initialEval = evaluateRefereeCall({
         incident: currentIncident,
@@ -449,6 +454,8 @@ export default function App() {
 
       setOfrModalOpen(false);
       setPendingVarHint(null);
+      setShowRulebookDetails(false);
+      setIsMasterOverruled(false);
       setRefereeRating(finalEval.new_rating);
       setLatestEvaluation(finalEval);
       setEvaluations((prev) => [...prev, finalEval]);
@@ -486,6 +493,28 @@ export default function App() {
     ]
   );
 
+  const handleMasterOverride = useCallback(() => {
+    if (!latestEvaluation) return;
+    soundEngine.playWhistle(0.55);
+    setIsMasterOverruled(true);
+    const basePrev =
+      latestEvaluation.previous_rating ??
+      Number((latestEvaluation.new_rating - latestEvaluation.rating_delta / 10).toFixed(1));
+    const bestDelta = Math.max(latestEvaluation.rating_delta, 6);
+    const boostedRating = Math.min(10.0, Number((basePrev + bestDelta / 10).toFixed(1)));
+    const overriddenEval: CallEvaluationResult = {
+      ...latestEvaluation,
+      verdict: 'STOOD_FIRM_CORRECT',
+      rating_delta: bestDelta,
+      new_rating: boostedRating,
+    };
+    setRefereeRating(boostedRating);
+    setLatestEvaluation(overriddenEval);
+    setEvaluations((prev) =>
+      prev.length > 0 ? [...prev.slice(0, -1), overriddenEval] : [overriddenEval]
+    );
+  }, [latestEvaluation, refereeRating]);
+
   const handleNextIncident = useCallback(() => {
     soundEngine.playWhistle(0.3);
     if (currentIncidentIdx + 1 < incidents.length) {
@@ -495,6 +524,9 @@ export default function App() {
       setPendingInitialCall(null);
       setOfrModalOpen(false);
       setShowPreCallVarHint(false);
+      setShowSituationDetails(false);
+      setShowRulebookDetails(false);
+      setIsMasterOverruled(false);
       setLiveLegalReasoning(null);
       setDecisionTimer(3.0);
       setPitchTime(0);
@@ -1037,6 +1069,9 @@ export default function App() {
                             setPendingInitialCall(null);
                             setOfrModalOpen(false);
                             setShowPreCallVarHint(false);
+                            setShowSituationDetails(false);
+                            setShowRulebookDetails(false);
+                            setIsMasterOverruled(false);
                             setLiveLegalReasoning(null);
                             setDecisionTimer(3.0);
                             setPitchTime(0);
@@ -1092,14 +1127,28 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Situation Description */}
-                <div className="space-y-0.5">
-                  <div className="text-xs font-extrabold text-rose-600 leading-tight">
-                    ⚡ {currentIncident.title}
+                {/* Situation Title + Collapsible "▸ Details" Toggle (No long paragraph unless requested!) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-extrabold text-rose-600 leading-tight truncate">
+                      ⚡ {currentIncident.title}
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="toggle-situation-details-btn"
+                      onClick={() => setShowSituationDetails((s) => !s)}
+                      className="shrink-0 px-2 py-0.5 rounded bg-slate-200 hover:bg-amber-200 text-[#09090B] font-extrabold text-[10px] border border-[#09090B] cursor-pointer"
+                    >
+                      {showSituationDetails ? '[-] Hide Details' : '[+] Details'}
+                    </button>
                   </div>
-                  <p className="text-xs font-bold text-[#1E1B4B] leading-snug">
-                    {currentIncident.context.situation_summary}
-                  </p>
+
+                  {showSituationDetails && (
+                    <p className="text-xs font-bold text-[#1E1B4B] leading-snug pt-0.5 border-t border-[#09090B]/10">
+                      {currentIncident.context.situation_summary}
+                    </p>
+                  )}
+
                   {showPreCallVarHint && (
                     <p className="text-xs font-extrabold text-sky-700 pt-0.5">
                       {currentIncident.auditor_check.var_hint}
@@ -1382,19 +1431,15 @@ export default function App() {
                           id="ofr-modal-title"
                           className="text-sm font-extrabold text-slate-900"
                         >
-                          📺 [VAR ON-FIELD REVIEW] Pitchside Replay Check
+                          📺 [VAR ON-FIELD REVIEW] Pitchside Monitor
                         </h2>
                         <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-400 text-xs font-extrabold text-slate-800">
-                          On-Field Call: {KO_CALL_NAMES[pendingInitialCall]} on{' '}
+                          Your Call: {KO_CALL_NAMES[pendingInitialCall]} on{' '}
                           {selectedTargetRole === 'attacker'
                             ? `🔴 Attacker #${attackerNum}`
                             : `🔵 Defender #${defenderNum}`}
                         </span>
                       </div>
-
-                      <p className="text-xs font-bold text-slate-700 leading-relaxed">
-                        VAR Room invites you to review the replay monitor above. Re-examine the contact point and player actions, then select your final ruling below (rating impact is revealed after your call):
-                      </p>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                         <button
@@ -1455,15 +1500,16 @@ export default function App() {
                           }
                           className="py-2 px-2.5 rounded-lg bg-slate-100 hover:bg-amber-200 text-[#09090B] font-extrabold text-xs retro-btn cursor-pointer text-left"
                         >
-                          ✋ Stand Firm: Keep {KO_CALL_NAMES[pendingInitialCall]} ({selectedTargetRole === 'attacker' ? `🔴 Att #${attackerNum}` : `🔵 Def #${defenderNum}`})
+                          👑 I AM THE REFEREE! Keep {KO_CALL_NAMES[pendingInitialCall]} ({selectedTargetRole === 'attacker' ? `🔴 Att #${attackerNum}` : `🔵 Def #${defenderNum}`})
                         </button>
                       </div>
                     </div>
                   )}
 
-                  {/* FINAL VERDICT + GIANT NEXT PLAY BUTTON (Strict Positive vs Negative Styling!) */}
+                  {/* FINAL VERDICT + COLLAPSIBLE RULEBOOK DETAILS + "I AM THE MASTER" OVERRIDE! */}
                   {latestEvaluation && (() => {
                     const isPositiveVerdict =
+                      isMasterOverruled ||
                       latestEvaluation.verdict === 'CORRECT_INITIAL' ||
                       latestEvaluation.verdict === 'STOOD_FIRM_CORRECT' ||
                       latestEvaluation.verdict === 'OVERTURNED_CORRECT' ||
@@ -1482,37 +1528,46 @@ export default function App() {
                       <div
                         data-testid="verdict-card"
                         className={`p-3 rounded-lg border-3 border-[#09090B] space-y-2 ${
-                          isPositiveVerdict ? 'bg-emerald-50' : 'bg-rose-100'
+                          isMasterOverruled
+                            ? 'bg-amber-100'
+                            : isPositiveVerdict
+                            ? 'bg-emerald-50'
+                            : 'bg-rose-100'
                         }`}
                       >
+                        {/* Row 1: Punchy Result Headline + Rating Pill */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span
                             data-testid="verdict-headline"
                             className={`text-sm font-extrabold ${
-                              isPositiveVerdict ? 'text-emerald-800' : 'text-rose-700'
+                              isMasterOverruled
+                                ? 'text-amber-950'
+                                : isPositiveVerdict
+                                ? 'text-emerald-800'
+                                : 'text-rose-700'
                             }`}
                           >
-                            {latestEvaluation.verdict === 'CORRECT_INITIAL' ||
-                            latestEvaluation.verdict === 'STOOD_FIRM_CORRECT'
-                              ? '✅ SPOT-ON DECISION! (Correct on First Try)'
+                            {isMasterOverruled
+                              ? '👑 I AM THE MASTER! MY WHISTLE IS THE LAW!'
+                              : latestEvaluation.verdict === 'CORRECT_INITIAL' ||
+                                latestEvaluation.verdict === 'STOOD_FIRM_CORRECT'
+                              ? '✅ SPOT-ON CALL!'
                               : latestEvaluation.verdict === 'OVERTURNED_CORRECT'
-                              ? '🔄 OVERTURNED AT VAR MONITOR! (Corrected After Review)'
+                              ? '🔄 VAR OVERTURN ACCEPTED!'
                               : latestEvaluation.verdict === 'ACCEPTABLE_FLOW'
-                              ? '👍 ACCEPTABLE ADVANTAGE / FLOW!'
-                              : latestEvaluation.verdict === 'CLEAR_ERROR_UNCORRECTED'
-                              ? '❌ WRONG DECISION — PERSISTED & REFUSED VAR CORRECTION!'
-                              : '❌ WRONG DECISION — IFAB RULE VIOLATION!'}{' '}
-                            · <span className="underline">{latestEvaluation.law_ref}</span>
+                              ? '👍 GOOD ADVANTAGE FLOW!'
+                              : '⚡ RULEBOOK DISAGREES WITH YOUR CALL!'}
                           </span>
                           <span
                             data-testid="verdict-rating-badge"
                             className={`px-2.5 py-0.5 rounded text-xs font-mono font-extrabold border-2 border-[#09090B] ${
-                              isPositiveVerdict
+                              isMasterOverruled
+                                ? 'bg-amber-400 text-[#09090B]'
+                                : isPositiveVerdict
                                 ? 'bg-emerald-400 text-[#09090B]'
                                 : 'bg-rose-600 text-white'
                             }`}
                           >
-                            {isPositiveVerdict ? 'Rating Boost: ' : 'Rating Penalty: '}
                             {latestEvaluation.rating_delta >= 0
                               ? `+${decimalDelta}`
                               : decimalDelta}{' '}
@@ -1520,39 +1575,58 @@ export default function App() {
                           </span>
                         </div>
 
-                        {/* Crystal-Clear Comparison Strip: Your Call vs Required IFAB Call */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] font-extrabold">
-                          <div
-                            className={`px-2.5 py-1 rounded border-2 border-[#09090B] ${
-                              isPositiveVerdict
-                                ? 'bg-emerald-200/80 text-emerald-950'
-                                : 'bg-rose-200 text-rose-950'
-                            }`}
-                          >
-                            Your Final Call: [{KO_CALL_NAMES[latestEvaluation.player_final_call]} on{' '}
-                            {latestEvaluation.player_target_label || 'Selected Player'}]{' '}
-                            {isPositiveVerdict ? '✅' : '❌ WRONG'}
+                        {/* Row 2: Your Call Summary + "▸ Details (Rulebook)" Toggle + "👑 I AM THE MASTER!" Button */}
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <div className="px-2.5 py-1 rounded border-2 border-[#09090B] bg-white text-[#09090B] text-xs font-extrabold">
+                            Your Call: {KO_CALL_NAMES[latestEvaluation.player_final_call]} on{' '}
+                            {latestEvaluation.player_target_label || 'Selected Player'}
                           </div>
-                          <div className="px-2.5 py-1 rounded border-2 border-[#09090B] bg-amber-100 text-[#09090B]">
-                            Required IFAB Call: [{requiredCallStr} on{' '}
-                            {latestEvaluation.expected_target_label || 'True Offender'}]
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              data-testid="toggle-rulebook-details-btn"
+                              onClick={() => setShowRulebookDetails((r) => !r)}
+                              className="px-2.5 py-1 rounded bg-slate-200 hover:bg-slate-300 text-[#09090B] font-extrabold text-xs border-2 border-[#09090B] cursor-pointer"
+                            >
+                              {showRulebookDetails
+                                ? '[-] Hide Details (Rulebook)'
+                                : '[+] Details (IFAB Rulebook)'}
+                            </button>
+
+                            {!isMasterOverruled && (
+                              <button
+                                type="button"
+                                data-testid="referee-master-override-btn"
+                                onClick={handleMasterOverride}
+                                className="px-2.5 py-1 rounded bg-amber-400 hover:bg-amber-300 text-[#09090B] font-extrabold text-xs border-2 border-[#09090B] shadow-[0_2px_0_#09090B] cursor-pointer"
+                              >
+                                {isPositiveVerdict
+                                  ? '👑 I AM THE MASTER! (Assert Authority)'
+                                  : '👑 Screw the Rulebook — I AM THE MASTER! (+0.6)'}
+                              </button>
+                            )}
                           </div>
                         </div>
 
-                        <p
-                          className={`text-xs font-bold leading-relaxed ${
-                            isPositiveVerdict ? 'text-slate-800' : 'text-rose-950'
-                          }`}
-                        >
-                          {latestEvaluation.explanation}
-                        </p>
-
-                        {liveLegalReasoning && (
-                          <div className="p-2 rounded bg-sky-100 border-2 border-[#09090B] text-xs font-bold text-[#09090B]">
-                            <span className="text-sky-800 font-extrabold">
-                              [AI IFAB Legal Analysis]:{' '}
-                            </span>
-                            {liveLegalReasoning}
+                        {/* Optional Expanded Rulebook Details (Hidden by default so there's zero text clutter!) */}
+                        {showRulebookDetails && (
+                          <div className="p-2.5 rounded-lg bg-white/90 border-2 border-[#09090B] space-y-1.5 text-xs">
+                            <div className="flex flex-wrap items-center justify-between gap-1 font-extrabold text-slate-900 border-b border-slate-300 pb-1">
+                              <span>📖 Official IFAB Rulebook: {latestEvaluation.law_ref}</span>
+                              <span className="px-2 py-0.5 rounded bg-amber-100 border border-[#09090B] text-[11px]">
+                                Textbook Call: {requiredCallStr} on{' '}
+                                {latestEvaluation.expected_target_label || 'True Offender'}
+                              </span>
+                            </div>
+                            <p className="font-bold text-slate-800 leading-snug">
+                              {latestEvaluation.explanation}
+                            </p>
+                            {liveLegalReasoning && (
+                              <p className="font-bold text-sky-900 bg-sky-50 p-1.5 rounded border border-sky-300">
+                                <strong>[AI IFAB Analysis]:</strong> {liveLegalReasoning}
+                              </p>
+                            )}
                           </div>
                         )}
 
