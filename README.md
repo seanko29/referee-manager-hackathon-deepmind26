@@ -2,7 +2,7 @@
 
 ![WHISTLE Animated Gameplay Demo with Click Cursor](./public/demo-gameplay.gif)
 
-> 🌐 **Live Google Cloud Run App**: [https://ais-pre-nj2qq5kco2zt4bmft3zhn3-382326879008.asia-northeast1.run.app](https://ais-pre-nj2qq5kco2zt4bmft3zhn3-382326879008.asia-northeast1.run.app)
+> 🌐 **Live Google Cloud Run App**: [https://referee-maker-281123354147.asia-east1.run.app](https://referee-maker-281123354147.asia-east1.run.app)
 >
 > 🎬 **Demo Video & Animated GIF (With Visible Mouse Clicks)**:
 > - **Animated Gameplay GIF (Embedded Above)**: [`./public/demo-gameplay.gif`](./public/demo-gameplay.gif)

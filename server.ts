@@ -533,6 +533,7 @@ You are the WHISTLE 1M-Context VAR Legal Reasoning Agent. Never give generic 'Wr
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(__dirname, 'dist');
+    app.use('/src/assets', express.static(path.join(__dirname, 'src/assets')));
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
