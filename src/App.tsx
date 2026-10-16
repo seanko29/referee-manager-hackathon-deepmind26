@@ -183,6 +183,8 @@ export default function App() {
   const [showSituationDetails, setShowSituationDetails] = useState<boolean>(false);
   const [showRulebookDetails, setShowRulebookDetails] = useState<boolean>(false);
   const [isMasterOverruled, setIsMasterOverruled] = useState<boolean>(false);
+  const [isFullMatchFlow, setIsFullMatchFlow] = useState<boolean>(false);
+  const [liveMatchClockMin, setLiveMatchClockMin] = useState<number>(18);
 
   // Live FM Pitch Playback State (Starts at t=0 so players run & pass in real-time!)
   const [pitchTime, setPitchTime] = useState<number>(0);
@@ -243,6 +245,37 @@ export default function App() {
       document.body.dataset.state = 'playing';
     }
   }, [activeTab, careerStage]);
+
+  const isOpenPlayPhase =
+    isFullMatchFlow && liveMatchClockMin < currentIncident.context.minute;
+
+  // 90-Minute Compressed Full-Match Clock (90 mins compressed into ~3 mins!)
+  useEffect(() => {
+    if (!isFullMatchFlow || careerStage !== 'in_match' || activeTab !== 'career_match') {
+      return;
+    }
+    const targetMin = currentIncident.context.minute;
+    const intervalMs = Math.max(400, Math.round(1600 / playbackSpeed));
+    const timer = window.setInterval(() => {
+      setLiveMatchClockMin((prev) => {
+        if (prev < targetMin) {
+          const next = prev + 1;
+          if (next === targetMin) {
+            soundEngine.playWhistle(0.35);
+          }
+          return next;
+        }
+        return prev;
+      });
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [
+    isFullMatchFlow,
+    careerStage,
+    activeTab,
+    currentIncident.context.minute,
+    playbackSpeed,
+  ]);
 
   const appendTelemetryLog = useCallback(
     (
@@ -519,7 +552,10 @@ export default function App() {
     soundEngine.playWhistle(0.3);
     if (currentIncidentIdx + 1 < incidents.length) {
       const nextIdx = currentIncidentIdx + 1;
+      const prevMin = incidents[currentIncidentIdx]?.context.minute ?? 18;
+      const nextMin = incidents[nextIdx]?.context.minute ?? 37;
       setCurrentIncidentIdx(nextIdx);
+      setLiveMatchClockMin(isFullMatchFlow ? prevMin + 1 : nextMin);
       setLatestEvaluation(null);
       setPendingInitialCall(null);
       setOfrModalOpen(false);
@@ -534,7 +570,7 @@ export default function App() {
     } else {
       setActiveTab('assessor_report');
     }
-  }, [currentIncidentIdx, incidents]);
+  }, [currentIncidentIdx, incidents, isFullMatchFlow]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -732,6 +768,8 @@ export default function App() {
           hairStyle={hairStyle}
           hairColor={hairColor}
           skinColor={skinColor}
+          isOpenPlayPhase={isOpenPlayPhase}
+          liveMatchMinute={isFullMatchFlow ? liveMatchClockMin : currentIncident.context.minute}
           onTimeChange={setPitchTime}
           onTogglePlay={() => setIsPitchPlaying((p) => !p)}
           onSpeedChange={setPlaybackSpeed}
@@ -766,9 +804,39 @@ export default function App() {
             </span>
             <span>{currentLeague.awayTeam}</span>
             <span className="hidden sm:inline text-rose-600 font-mono">
-              {currentIncident.context.minute}:14’
+              {isFullMatchFlow ? `${liveMatchClockMin}:00’` : `${currentIncident.context.minute}:14’`}
             </span>
           </div>
+
+          <button
+            type="button"
+            data-testid="toggle-90min-full-match-btn"
+            title="Toggle 90-Minute Compressed Full Match Flow (90분 → 3분 압축 풀경기 진행)"
+            onClick={() => {
+              setIsFullMatchFlow((prev) => {
+                const next = !prev;
+                if (next) {
+                  const startMin =
+                    currentIncidentIdx === 0
+                      ? 1
+                      : (incidents[currentIncidentIdx - 1]?.context.minute ?? 1) + 1;
+                  setLiveMatchClockMin(startMin);
+                } else {
+                  setLiveMatchClockMin(currentIncident.context.minute);
+                }
+                return next;
+              });
+            }}
+            className={`px-2 py-1 rounded text-xs font-extrabold border-2 border-[#09090B] cursor-pointer whitespace-nowrap ${
+              isFullMatchFlow
+                ? 'bg-lime-400 text-[#09090B] shadow-[0_2px_0_#09090B]'
+                : 'bg-slate-800 text-amber-300 hover:bg-slate-700'
+            }`}
+          >
+            {isFullMatchFlow
+              ? `⏱️ 90m Live (${liveMatchClockMin}’/90’)`
+              : '⏱️ 90m Full Match'}
+          </button>
         </div>
 
         <nav aria-label="Primary Modes" className="flex items-center gap-1.5 whitespace-nowrap">
@@ -1129,6 +1197,23 @@ export default function App() {
 
                 {/* Situation Title + Collapsible "▸ Details" Toggle (No long paragraph unless requested!) */}
                 <div className="space-y-1">
+                  {isOpenPlayPhase && (
+                    <div className="flex items-center justify-between gap-2 px-2 py-1 rounded bg-lime-300 text-[#09090B] border-2 border-[#09090B] text-[11px] font-extrabold">
+                      <span>
+                        ⚽ OPEN PLAY ({liveMatchClockMin}’/90’) · Move Ref with WASD / Double-Click!
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundEngine.playWhistle(0.35);
+                          setLiveMatchClockMin(currentIncident.context.minute);
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-[#09090B] text-amber-300 text-[10px] font-extrabold cursor-pointer shrink-0"
+                      >
+                        ⏭️ Jump to {currentIncident.context.minute}’
+                      </button>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-xs font-extrabold text-rose-600 leading-tight truncate">
                       ⚡ {currentIncident.title}

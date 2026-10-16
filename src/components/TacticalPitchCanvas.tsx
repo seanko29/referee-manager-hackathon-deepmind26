@@ -29,6 +29,8 @@ interface TacticalPitchCanvasProps {
   hairStyle?: ChibiHairStyle;
   hairColor?: string;
   skinColor?: string;
+  isOpenPlayPhase?: boolean;
+  liveMatchMinute?: number;
   onTimeChange: (t: number) => void;
   onTogglePlay: () => void;
   onSpeedChange: (speed: number) => void;
@@ -53,6 +55,8 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
   hairStyle = 'spiky_ahoge',
   hairColor = '#111827',
   skinColor = '#F5C6A5',
+  isOpenPlayPhase = false,
+  liveMatchMinute,
   onTimeChange,
   onTogglePlay,
   onSpeedChange,
@@ -63,6 +67,7 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
   const [showCloseUpInset, setShowCloseUpInset] = useState<boolean>(true);
   const [isCamSpeedCollapsed, setIsCamSpeedCollapsed] = useState<boolean>(false);
   const [isMetersCollapsed, setIsMetersCollapsed] = useState<boolean>(false);
+  const [staminaPercent, setStaminaPercent] = useState<number>(92);
 
   const pixelCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -98,36 +103,48 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
     lastY: 0,
   });
 
-  // Referee manual movement offset via WASD / Arrow keys
+  // Referee manual movement offset via smooth 60fps WASD / Arrow keys OR Click-to-Run target!
   const refManualOffset = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const pressedKeysRef = useRef<Set<string>>(new Set());
+  const refTargetPxRef = useRef<{ x: number; y: number } | null>(null);
+  const isOpenPlayRef = useRef<boolean>(isOpenPlayPhase);
+  isOpenPlayRef.current = isOpenPlayPhase;
 
   useEffect(() => {
     refManualOffset.current = { dx: 0, dy: 0 };
+    refTargetPxRef.current = null;
     camPanRef.current = { x: 0, y: 0 };
   }, [incident.id]);
 
-  // WASD / Arrow keys pan camera & move referee around the pitch
+  // Smooth 60fps WASD / Arrow keys to directly control the Referee on the pitch
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      const panStep = 28;
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
-        camPanRef.current.y += panStep;
-        refManualOffset.current.dy -= 6;
-      } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-        camPanRef.current.y -= panStep;
-        refManualOffset.current.dy += 6;
-      } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        camPanRef.current.x += panStep;
-        refManualOffset.current.dx -= 6;
-      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        camPanRef.current.x -= panStep;
-        refManualOffset.current.dx += 6;
+      const k = e.key.toLowerCase();
+      if (
+        k === 'w' ||
+        k === 'a' ||
+        k === 's' ||
+        k === 'd' ||
+        e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown' ||
+        e.key === 'ArrowLeft' ||
+        e.key === 'ArrowRight'
+      ) {
+        pressedKeysRef.current.add(k);
+        refTargetPxRef.current = null;
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const onKeyUp = (e: KeyboardEvent) => {
+      pressedKeysRef.current.delete(e.key.toLowerCase());
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
   }, []);
 
   const refKitHex =
@@ -688,12 +705,107 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
         });
       }
 
-      // Add YOUR Custom Rounded 2D Chibi Referee (Positioned clearly below-left of the ball so he never blocks the tackle!)
-      const refBaseX = toPxX(frame.ball[0] - 8.5) + refManualOffset.current.dx;
-      const refBaseY = toPxY(frame.ball[1] + 8.5) + refManualOffset.current.dy;
+      // 60FPS Direct Referee Control: WASD / Arrow Keys OR Click-to-Run on the Pitch!
+      const defaultRefX = toPxX(frame.ball[0] - 8.5);
+      const defaultRefY = toPxY(frame.ball[1] + 8.5);
+      const moveSpeed = 210 * dt;
+      let isRefSprinting = false;
+
+      const keys = pressedKeysRef.current;
+      if (keys.has('w') || keys.has('arrowup')) {
+        refManualOffset.current.dy -= moveSpeed;
+        isRefSprinting = true;
+      }
+      if (keys.has('s') || keys.has('arrowdown')) {
+        refManualOffset.current.dy += moveSpeed;
+        isRefSprinting = true;
+      }
+      if (keys.has('a') || keys.has('arrowleft')) {
+        refManualOffset.current.dx -= moveSpeed;
+        isRefSprinting = true;
+      }
+      if (keys.has('d') || keys.has('arrowright')) {
+        refManualOffset.current.dx += moveSpeed;
+        isRefSprinting = true;
+      }
+
+      if (refTargetPxRef.current) {
+        const curX = defaultRefX + refManualOffset.current.dx;
+        const curY = defaultRefY + refManualOffset.current.dy;
+        const tdx = refTargetPxRef.current.x - curX;
+        const tdy = refTargetPxRef.current.y - curY;
+        const dist = Math.hypot(tdx, tdy);
+        if (dist > 4) {
+          refManualOffset.current.dx += (tdx / dist) * moveSpeed;
+          refManualOffset.current.dy += (tdy / dist) * moveSpeed;
+          isRefSprinting = true;
+        } else {
+          refTargetPxRef.current = null;
+        }
+      }
+
+      const refBaseX = Math.max(
+        pitchLeft + 18,
+        Math.min(pitchRight - 18, defaultRefX + refManualOffset.current.dx)
+      );
+      const refBaseY = Math.max(
+        pitchTop + 24,
+        Math.min(pitchBottom - 12, defaultRefY + refManualOffset.current.dy)
+      );
+
+      // Draw Click-to-Run Target Ring if active
+      if (refTargetPxRef.current) {
+        ctx.save();
+        ctx.strokeStyle = '#FACC15';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.arc(
+          refTargetPxRef.current.x,
+          refTargetPxRef.current.y,
+          12 + Math.sin(realSec * 10) * 3,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Compute Referee Sightline Distance (in meters) to the Ball / Foul!
+      const refDistMeters = Number(
+        (
+          Math.hypot(refBaseX - ballPxX, refBaseY - ballPxY) /
+          (pitchW / 105)
+        ).toFixed(1)
+      );
+      const isGoodSightline = refDistMeters <= 16;
+
+      // Subtle dashed Sightline connecting Your Referee to the Ball/Incident
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = isGoodSightline
+        ? 'rgba(163, 230, 53, 0.75)'
+        : 'rgba(248, 113, 113, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(refBaseX, refBaseY - 16);
+      ctx.lineTo(ballPxX, ballPxY);
+      ctx.stroke();
+      ctx.restore();
+
       const call = activeCallRef.current;
-      let refPose: ChibiPose = isAfterContact ? 'referee_whistle' : 'running';
-      let refBubble = isAfterContact ? 'WHISTLE—!!' : undefined;
+      let refPose: ChibiPose = isRefSprinting
+        ? 'running'
+        : isAfterContact && !isOpenPlayRef.current
+        ? 'referee_whistle'
+        : 'running';
+      let refBubble = isOpenPlayRef.current
+        ? `🏃 ${refDistMeters}m · OPEN PLAY`
+        : isRefSprinting
+        ? `🏃 ${refDistMeters}m (${isGoodSightline ? 'GOOD ANGLE' : 'MOVE CLOSER!'})`
+        : isAfterContact
+        ? `WHISTLE—!! (${refDistMeters}m)`
+        : undefined;
       if (call === 'red') {
         refPose = 'referee_red';
         refBubble = '🟥 RED CARD — OFF!!';
@@ -722,8 +834,8 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             hairColor,
             hairStyle,
             pose: refPose,
-            animPhase: realSec * speedRef.current * 1.2,
-            label: `REF ${refereeName}`,
+            animPhase: realSec * speedRef.current * (isRefSprinting ? 1.8 : 1.2),
+            label: `YOU (${refereeName}) · ${refDistMeters}m`,
             speechBubble: refBubble,
             bubbleOffsetX: -24,
             bubbleOffsetY: 4,
@@ -739,7 +851,11 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
       // On Handball, animate the ball flying from Shooter #10 straight into Defender #20's outstretched hand and deflecting!
       let renderedBallX = ballPxX;
       let renderedBallY = ballPxY;
-      if (isHandball && focalVictim && focalOffender) {
+      if (isOpenPlayRef.current) {
+        // Open-play continuous passing across midfield between incidents!
+        renderedBallX = midX + Math.sin(realSec * 2.4) * (pitchW * 0.24);
+        renderedBallY = midY + Math.cos(realSec * 3.1) * (pitchH * 0.26);
+      } else if (isHandball && focalVictim && focalOffender) {
         const vx = toPxX(focalVictim.x) + 7;
         const vy = toPxY(focalVictim.y) - 10;
         const handX = toPxX(focalOffender.x) - 23;
@@ -1098,7 +1214,6 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
     showCloseUpInset,
   ]);
 
-  const staminaPercent = 88;
   const respectPercent = Math.min(100, Math.max(15, Math.round(refereeRating * 10)));
   const stressPercent = Math.min(100, Math.max(10, crowdHeat));
 
@@ -1110,9 +1225,18 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           : 'flex flex-col bg-[#2b5b26] border-4 border-[#09090B] rounded-xl overflow-hidden select-none'
       }
     >
-      {/* Interactive FM Pitch Canvas: Supports Mouse Drag Pan & Wheel Zoom! */}
+      {/* Interactive FM Pitch Canvas: Double-Click to Run Referee to Spot, Drag to Pan, Wheel to Zoom! */}
       <div
         className="relative w-full h-full overflow-hidden cursor-grab active:cursor-grabbing"
+        onDoubleClick={(e) => {
+          const canvas = pixelCanvasRef.current;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          const cx = ((e.clientX - rect.left) / rect.width) * canvas.width;
+          const cy = ((e.clientY - rect.top) / rect.height) * canvas.height;
+          refTargetPxRef.current = { x: cx, y: cy };
+          setStaminaPercent((s) => Math.max(45, s - 2));
+        }}
         onPointerDown={(e) => {
           if ((e.target as HTMLElement).tagName === 'BUTTON') return;
           dragStateRef.current = {
@@ -1278,18 +1402,32 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  data-testid="closeup-cam-toggle-btn"
-                  onClick={() => setShowCloseUpInset((s) => !s)}
-                  className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer ${
-                    showCloseUpInset
-                      ? 'bg-amber-300 text-[#09090B]'
-                      : 'bg-white text-slate-700'
-                  }`}
-                >
-                  {showCloseUpInset ? '[-] Close-Up' : '[+] Close-Up'}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    data-testid="snap-ref-to-ball-btn"
+                    title="Snap your Referee back next to the ball (or move with WASD / Arrow Keys / Double-Click)"
+                    onClick={() => {
+                      refManualOffset.current = { dx: 0, dy: 0 };
+                      refTargetPxRef.current = null;
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-lime-400 hover:bg-lime-300 text-[#09090B] font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer"
+                  >
+                    🏃 Ref WASD
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="closeup-cam-toggle-btn"
+                    onClick={() => setShowCloseUpInset((s) => !s)}
+                    className={`px-1.5 py-0.5 rounded font-extrabold text-[10px] border-2 border-[#09090B] cursor-pointer ${
+                      showCloseUpInset
+                        ? 'bg-amber-300 text-[#09090B]'
+                        : 'bg-white text-slate-700'
+                    }`}
+                  >
+                    {showCloseUpInset ? '[-] Close-Up' : '[+] Close-Up'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
