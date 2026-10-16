@@ -21,7 +21,8 @@ export type ChibiPose =
   | 'shot_follow_through'
   | 'sliding_tackle'
   | 'shirt_pull_grab'
-  | 'theatrical_dive';
+  | 'theatrical_dive'
+  | 'goalkeeper_ready';
 
 export interface ChibiDrawOptions {
   x: number;
@@ -42,6 +43,8 @@ export interface ChibiDrawOptions {
   bubbleOffsetX?: number;
   bubbleOffsetY?: number;
   isReferee?: boolean;
+  isGoalkeeper?: boolean;
+  gloveColor?: string;
 }
 
 function drawRoundedCapsule(
@@ -159,6 +162,8 @@ export function drawChibiPixelCharacter(
     bubbleOffsetX = 0,
     bubbleOffsetY = 0,
     isReferee = false,
+    isGoalkeeper = false,
+    gloveColor = '#A3E635',
   } = opts;
 
   ctx.save();
@@ -173,12 +178,43 @@ export function drawChibiPixelCharacter(
       ? Math.abs(Math.cos(animPhase * 7)) * -3.5
       : Math.sin(animPhase * 3.5) * -1.8;
 
+  // Helper to draw oversized Padded Goalkeeper Glove with wrist strap & finger ribs
+  const drawKeeperGlove = (gx: number, gy: number, side: 'left' | 'right') => {
+    const dir = side === 'left' ? -1 : 1;
+    // Black wrist strap cuff
+    drawRoundedCapsule(ctx, gx - 5, gy - 4, 10, 6, 2, '#09090B', '#09090B', 1.8);
+    // White wrist band detail
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(gx - 3.5, gy - 2.5, 7, 2);
+    // Oversized padded latex glove palm (16x14)
+    drawRoundedCapsule(
+      ctx,
+      gx - 8 + dir * 2,
+      gy - 11,
+      16,
+      14,
+      6,
+      gloveColor,
+      '#09090B',
+      2.4
+    );
+    // White latex backhand / finger grip ribs
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(gx - 5 + dir * 2, gy - 9, 3, 6);
+    ctx.fillRect(gx - 0.5 + dir * 2, gy - 9.5, 3, 6.5);
+    ctx.fillRect(gx + 4 + dir * 2, gy - 8.5, 2.5, 5.5);
+    // Thumb pad sticking inward
+    drawCirclePart(ctx, gx - dir * 5, gy - 2, 4, gloveColor, '#09090B', 2);
+  };
+
   // 1. Ground Shadow Oval (Always stays flat & horizontal on the grass!)
   ctx.fillStyle = 'rgba(15, 23, 42, 0.35)';
   ctx.beginPath();
   const shadowRx =
     pose === 'sliding_tackle' || pose === 'fallen' || pose === 'theatrical_dive'
       ? 28
+      : isGoalkeeper
+      ? 24
       : 21;
   ctx.ellipse(pose === 'sliding_tackle' ? 6 : 0, 0, shadowRx, 5.5, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -238,6 +274,11 @@ export function drawChibiPixelCharacter(
   // 2. Cute Rounded Chibi Legs, Socks & Cleats
   const drawLeg = (lx: number, legOffset: number) => {
     drawRoundedCapsule(ctx, lx - 5, -18 + legOffset, 10, 11, 4, skinColor);
+    if (isGoalkeeper) {
+      // Goalkeeper dark knee-pad band
+      ctx.fillStyle = '#09090B';
+      ctx.fillRect(lx - 4.8, -15 + legOffset, 9.6, 3.5);
+    }
     drawRoundedCapsule(ctx, lx - 5.2, -11 + legOffset, 10.4, 8, 3, socksColor);
     drawRoundedCapsule(
       ctx,
@@ -324,6 +365,11 @@ export function drawChibiPixelCharacter(
     ctx.rotate(-0.65);
     drawLeg(0, 18);
     ctx.restore();
+  } else if (pose === 'goalkeeper_ready' || isGoalkeeper) {
+    // Wide athletic goalkeeper crouch stance on the goal line
+    const keeperHop = Math.abs(Math.sin(animPhase * 5)) * -1.8;
+    drawLeg(-10.5, keeperHop);
+    drawLeg(10.5, keeperHop);
   } else {
     drawLeg(-8, stride);
     drawLeg(8, -stride);
@@ -339,6 +385,12 @@ export function drawChibiPixelCharacter(
     5,
     shortsColor
   );
+  if (isGoalkeeper) {
+    // Padded goalkeeper hip protection stripes on shorts
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(-13.5 + shortsShiftX, -25 + bounce + shortsShiftY, 3, 7);
+    ctx.fillRect(10.5 + shortsShiftX, -25 + bounce + shortsShiftY, 3, 7);
+  }
   ctx.beginPath();
   ctx.moveTo(shortsShiftX, -22 + bounce + shortsShiftY);
   ctx.lineTo(shortsShiftX, -16 + bounce + shortsShiftY);
@@ -357,8 +409,18 @@ export function drawChibiPixelCharacter(
     shirtColor
   );
 
+  // Goalkeeper Padded Jersey Pattern (Dark Shoulder Pads + Chest Grip Chevrons)
+  if (isGoalkeeper) {
+    ctx.fillStyle = '#09090B';
+    ctx.fillRect(-14 + torsoShiftX, -46 + bounce + torsoShiftY, 6, 4);
+    ctx.fillRect(8 + torsoShiftX, -46 + bounce + torsoShiftY, 6, 4);
+    ctx.fillStyle = 'rgba(9, 9, 11, 0.25)';
+    ctx.fillRect(-11 + torsoShiftX, -39 + bounce + torsoShiftY, 22, 2.5);
+    ctx.fillRect(-11 + torsoShiftX, -33 + bounce + torsoShiftY, 22, 2.5);
+  }
+
   // Polo Collar
-  ctx.fillStyle = isReferee ? '#111827' : '#FFFFFF';
+  ctx.fillStyle = isReferee || isGoalkeeper ? '#111827' : '#FFFFFF';
   ctx.strokeStyle = '#09090B';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -397,7 +459,13 @@ export function drawChibiPixelCharacter(
     ctx.fillRect(4.5 + torsoShiftX, -36 + bounce + torsoShiftY, 4, 3);
   } else if (jerseyNumber !== undefined) {
     ctx.fillStyle =
-      shirtColor === '#FACC15' || shirtColor === '#A3E635' ? '#09090B' : '#FFFFFF';
+      shirtColor === '#FACC15' ||
+      shirtColor === '#A3E635' ||
+      shirtColor === '#F59E0B' ||
+      shirtColor === '#06B6D4' ||
+      shirtColor === '#4ADE80'
+        ? '#09090B'
+        : '#FFFFFF';
     ctx.font = '900 10px "Silkscreen", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(String(jerseyNumber), torsoShiftX, -31 + bounce + torsoShiftY);
@@ -420,6 +488,20 @@ export function drawChibiPixelCharacter(
     drawCirclePart(ctx, 21, -56 + bounce, 5, skinColor);
     const cardHex = pose === 'referee_yellow' ? '#FACC15' : '#EF4444';
     drawRoundedCapsule(ctx, 15, -76 + bounce, 13, 18, 2.5, cardHex, '#09090B', 2.4);
+  } else if (pose === 'goalkeeper_ready' || isGoalkeeper) {
+    // GOALKEEPER READY STANCE: Long padded goalkeeper sleeves spread wide + Oversized Latex Keeper Gloves!
+    const gkWave = Math.sin(animPhase * 5) * 2.5;
+    // Left long-sleeve keeper arm spread out with black elbow pad
+    drawRoundedCapsule(ctx, -26, -46 + bounce + gkWave, 13, 10, 4.5, shirtColor);
+    ctx.fillStyle = '#09090B';
+    ctx.fillRect(-23, -44 + bounce + gkWave, 4, 6);
+    drawKeeperGlove(-30, -40 + bounce + gkWave, 'left');
+
+    // Right long-sleeve keeper arm spread out with black elbow pad
+    drawRoundedCapsule(ctx, 13, -46 + bounce - gkWave, 13, 10, 4.5, shirtColor);
+    ctx.fillStyle = '#09090B';
+    ctx.fillRect(19, -44 + bounce - gkWave, 4, 6);
+    drawKeeperGlove(30, -40 + bounce - gkWave, 'right');
   } else if (pose === 'sliding_tackle') {
     // SLIDE TACKLE ARMS: Left hand planted back on the grass supporting the slide, right arm counter-balancing forward!
     drawRoundedCapsule(ctx, -36, -34 + bounce, 12, 16, 4.5, shirtColor);

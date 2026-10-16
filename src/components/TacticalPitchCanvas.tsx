@@ -285,6 +285,30 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
       ctx.strokeRect(pitchLeft, midY - sixH / 2, sixW, sixH);
       ctx.strokeRect(pitchRight - sixW, midY - sixH / 2, sixW, sixH);
 
+      // Left & Right Goal Frames + White Mesh Nets behind the Goalkeepers
+      const goalDepth = 18;
+      const goalH = pitchH * 0.16;
+      const goalTop = midY - goalH / 2;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.fillRect(pitchLeft - goalDepth, goalTop, goalDepth, goalH);
+      ctx.fillRect(pitchRight, goalTop, goalDepth, goalH);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.lineWidth = 1;
+      for (let gy = goalTop + 6; gy < goalTop + goalH; gy += 6) {
+        ctx.beginPath();
+        ctx.moveTo(pitchLeft - goalDepth, gy);
+        ctx.lineTo(pitchLeft, gy);
+        ctx.moveTo(pitchRight, gy);
+        ctx.lineTo(pitchRight + goalDepth, gy);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(pitchLeft - goalDepth, goalTop, goalDepth, goalH);
+      ctx.strokeRect(pitchRight, goalTop, goalDepth, goalH);
+      ctx.restore();
+
       const [offSide, offIdStr] = incident.contact.offender.split('_');
       const [vicSide, vicIdStr] = incident.contact.victim.split('_');
       const offId = Number(offIdStr);
@@ -343,9 +367,9 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
 
         if (isNearContact) {
           ctx.strokeStyle = '#EF4444';
-          ctx.lineWidth = 4;
+          ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(vx, vy, 25 + Math.sin(realSec * 12) * 5, 0, Math.PI * 2);
+          ctx.arc(vx, vy, 18 + Math.sin(realSec * 12) * 4, 0, Math.PI * 2);
           ctx.stroke();
         }
       }
@@ -360,34 +384,34 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
         ctx.save();
         if (isHandball) {
           // Shot trajectory line from Shooter (#10) to Defender (#20)'s outstretched 95° hand!
-          const handX = ox - 34;
-          const handY = oy - 35;
+          const handX = ox - 23;
+          const handY = oy - 24;
           ctx.setLineDash([6, 4]);
           ctx.strokeStyle = '#FACC15';
-          ctx.lineWidth = 3.5;
+          ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.moveTo(vx + 10, vy - 14);
+          ctx.moveTo(vx + 7, vy - 10);
           ctx.lineTo(handX, handY);
-          ctx.lineTo(ox - 18, oy + 26);
+          ctx.lineTo(ox - 12, oy + 18);
           ctx.stroke();
           ctx.setLineDash([]);
 
           // Pulsing Red/Gold Handball Impact Starburst on #20's outstretched hand
           ctx.fillStyle = 'rgba(239, 68, 68, 0.38)';
           ctx.beginPath();
-          ctx.arc(handX, handY, 16 + Math.sin(realSec * 14) * 4, 0, Math.PI * 2);
+          ctx.arc(handX, handY, 12 + Math.sin(realSec * 14) * 3, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = '#EF4444';
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 2.5;
           ctx.stroke();
         } else if (isSimulationDive) {
           // 1.4m Zero-Contact Gap Line between Diver (#11) and Defender (#19)
           ctx.setLineDash([5, 5]);
           ctx.strokeStyle = '#38BDF8';
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.moveTo(ox, oy - 20);
-          ctx.lineTo(vx, vy - 20);
+          ctx.moveTo(ox, oy - 14);
+          ctx.lineTo(vx, vy - 14);
           ctx.stroke();
           ctx.setLineDash([]);
         } else if (isAdvantagePlay) {
@@ -398,26 +422,26 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             const wy = toPxY(winger7.y);
             ctx.setLineDash([7, 4]);
             ctx.strokeStyle = '#A3E635';
-            ctx.lineWidth = 3.5;
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(vx, vy - 10);
-            ctx.lineTo(wx, wy - 10);
+            ctx.moveTo(vx, vy - 8);
+            ctx.lineTo(wx, wy - 8);
             ctx.stroke();
             ctx.setLineDash([]);
           }
         } else if (isShirtPull) {
           // Stretched red jersey tug line between Defender (#13) and Winger (#7)
           ctx.strokeStyle = '#EF4444';
-          ctx.lineWidth = 4;
+          ctx.lineWidth = 3.5;
           ctx.beginPath();
-          ctx.moveTo(ox, oy - 32);
-          ctx.lineTo(vx, vy - 32);
+          ctx.moveTo(ox, oy - 22);
+          ctx.lineTo(vx, vy - 22);
           ctx.stroke();
         }
         ctx.restore();
       }
 
-      // 4. Render All 22 Rounded 2D Chibi Players + 1 Chibi Referee
+      // 4. Render All 22 Rounded 2D Chibi Players + 1 Chibi Referee (Proportionally Scaled to Pitch!)
       interface RenderableEntity {
         y: number;
         draw: () => void;
@@ -425,15 +449,17 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
       const entities: RenderableEntity[] = [];
 
       for (const p of frame.home) {
+        const isGoalkeeper = p.role === 'GK' || p.id === 1;
         const isVictim = vicSide === 'home' && p.id === vicId;
         const isOffender = offSide === 'home' && p.id === offId;
         const roamX =
-          !isVictim && !isOffender
-            ? Math.sin(realSec * (2.2 * speedRef.current) + p.id * 1.7) * 9.5
+          !isVictim && !isOffender && !isGoalkeeper
+            ? Math.sin(realSec * (2.2 * speedRef.current) + p.id * 1.7) * 6.5
             : 0;
         const roamY =
           !isVictim && !isOffender
-            ? Math.cos(realSec * (1.9 * speedRef.current) + p.id * 2.1) * 7.5
+            ? Math.cos(realSec * (1.9 * speedRef.current) + p.id * 2.1) *
+              (isGoalkeeper ? 3.5 : 5.0)
             : 0;
 
         // Lock focal player at contact spot once the tackle happens so they NEVER glide diagonally while fallen!
@@ -447,16 +473,16 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             ? contactHomeP.y
             : p.y;
 
-        // Separate Attacker to the right (+26px) at contact so Defender's lunging slide boot hits his swept-back ankle cleanly!
+        // Separate Attacker to the right (+18px) at contact so Defender's lunging slide boot hits his swept-back ankle cleanly!
         const contactSepX =
           isVictim && isNearContact && !isHandball && !isAdvantagePlay
-            ? 26 + Math.max(0, Math.sin(realSec * 6) * 3)
+            ? 18 + Math.max(0, Math.sin(realSec * 6) * 2)
             : 0;
 
         const px = toPxX(baseX) + roamX + contactSepX;
         const py = toPxY(baseY) + roamY;
 
-        let pose: ChibiPose = 'running';
+        let pose: ChibiPose = isGoalkeeper ? 'goalkeeper_ready' : 'running';
         let bubble: string | undefined;
         let bOffX = 0;
         let bOffY = 0;
@@ -517,19 +543,26 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             drawChibiPixelCharacter(ctx, {
               x: px,
               y: py,
-              scale: isVictim || isOffender ? 0.92 : 0.72,
-              shirtColor: league.homeColor || '#DC2626',
+              scale: isVictim || isOffender ? 0.60 : isGoalkeeper ? 0.56 : 0.48,
+              shirtColor: isGoalkeeper ? '#F59E0B' : league.homeColor || '#DC2626',
               shortsColor: '#111827',
-              socksColor: league.homeColor || '#DC2626',
+              socksColor: isGoalkeeper ? '#F59E0B' : league.homeColor || '#DC2626',
               hairColor: '#18181B',
-              hairStyle: p.id % 2 === 0 ? 'spiky_ahoge' : 'messy_shock',
+              hairStyle: isGoalkeeper
+                ? 'buzz_captain'
+                : p.id % 2 === 0
+                ? 'spiky_ahoge'
+                : 'messy_shock',
               pose,
               animPhase: realSec * speedRef.current + p.id * 0.4,
               jerseyNumber: p.id,
-              label:
-                isVictim || isOffender || (isAdvantagePlay && p.id === 7)
-                  ? `#${p.id}`
-                  : undefined,
+              isGoalkeeper,
+              gloveColor: '#A3E635',
+              label: isGoalkeeper
+                ? `GK #${p.id}`
+                : isVictim || isOffender || (isAdvantagePlay && p.id === 7)
+                ? `#${p.id}`
+                : undefined,
               speechBubble: bubble,
               bubbleOffsetX: bOffX,
               bubbleOffsetY: bOffY,
@@ -538,15 +571,17 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
       }
 
       for (const p of frame.away) {
+        const isGoalkeeper = p.role === 'GK' || p.id === 21 || p.id === 1;
         const isVictim = vicSide === 'away' && p.id === vicId;
         const isOffender = offSide === 'away' && p.id === offId;
         const roamX =
-          !isVictim && !isOffender
-            ? Math.cos(realSec * (2.1 * speedRef.current) + p.id * 1.3) * 9.5
+          !isVictim && !isOffender && !isGoalkeeper
+            ? Math.cos(realSec * (2.1 * speedRef.current) + p.id * 1.3) * 6.5
             : 0;
         const roamY =
           !isVictim && !isOffender
-            ? Math.sin(realSec * (2.3 * speedRef.current) + p.id * 1.9) * 7.5
+            ? Math.sin(realSec * (2.3 * speedRef.current) + p.id * 1.9) *
+              (isGoalkeeper ? 3.5 : 5.0)
             : 0;
 
         // Lock focal Defender at the tackle spot once he lunges into the slide tackle so he NEVER glides diagonally!
@@ -563,13 +598,13 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
         // Position Defender to the left of Striker at the moment of the slide tackle so his extended leg lunges into the ankle!
         const contactSepX =
           isOffender && isNearContact && !isHandball && !isSimulationDive && !isAdvantagePlay
-            ? -28 + Math.sin(realSec * 6) * 4
+            ? -19 + Math.sin(realSec * 6) * 2.5
             : 0;
 
         const px = toPxX(baseX) + roamX + contactSepX;
         const py = toPxY(baseY) + roamY;
 
-        let pose: ChibiPose = 'running';
+        let pose: ChibiPose = isGoalkeeper ? 'goalkeeper_ready' : 'running';
         let bubble: string | undefined;
         let bOffX = 0;
         let bOffY = 0;
@@ -624,18 +659,28 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             drawChibiPixelCharacter(ctx, {
               x: px,
               y: py,
-              scale: isVictim || isOffender ? 0.92 : 0.72,
-              shirtColor: '#1E293B',
-              shortsColor: '#FFFFFF',
-              socksColor: '#1E3A8A',
+              scale: isVictim || isOffender ? 0.60 : isGoalkeeper ? 0.56 : 0.48,
+              shirtColor: isGoalkeeper ? '#06B6D4' : '#1E293B',
+              shortsColor: isGoalkeeper ? '#09090B' : '#FFFFFF',
+              socksColor: isGoalkeeper ? '#06B6D4' : '#1E3A8A',
               skinColor: p.id === 4 || p.id === 8 ? '#C68652' : '#F7C59F',
               hairColor: '#18181B',
-              hairStyle: p.id === 4 || p.id === 8 ? 'buzz_captain' : 'spiky_ahoge',
+              hairStyle: isGoalkeeper
+                ? 'red_cap'
+                : p.id === 4 || p.id === 8
+                ? 'buzz_captain'
+                : 'spiky_ahoge',
               hasCaptainBand: p.id === 4 || p.id === 8,
               pose,
               animPhase: realSec * speedRef.current + p.id * 0.5,
               jerseyNumber: p.id,
-              label: isVictim || isOffender ? `#${p.id}` : undefined,
+              isGoalkeeper,
+              gloveColor: '#FACC15',
+              label: isGoalkeeper
+                ? `GK #${p.id}`
+                : isVictim || isOffender
+                ? `#${p.id}`
+                : undefined,
               speechBubble: bubble,
               bubbleOffsetX: bOffX,
               bubbleOffsetY: bOffY,
@@ -669,7 +714,7 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           drawChibiPixelCharacter(ctx, {
             x: refBaseX,
             y: refBaseY,
-            scale: 0.94,
+            scale: 0.60,
             shirtColor: refKitHex,
             shortsColor: '#111827',
             socksColor: '#111827',
@@ -695,12 +740,12 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
       let renderedBallX = ballPxX;
       let renderedBallY = ballPxY;
       if (isHandball && focalVictim && focalOffender) {
-        const vx = toPxX(focalVictim.x) + 10;
-        const vy = toPxY(focalVictim.y) - 14;
-        const handX = toPxX(focalOffender.x) - 34;
-        const handY = toPxY(focalOffender.y) - 35;
-        const deflectX = toPxX(focalOffender.x) - 18;
-        const deflectY = toPxY(focalOffender.y) + 26;
+        const vx = toPxX(focalVictim.x) + 7;
+        const vy = toPxY(focalVictim.y) - 10;
+        const handX = toPxX(focalOffender.x) - 23;
+        const handY = toPxY(focalOffender.y) - 24;
+        const deflectX = toPxX(focalOffender.x) - 12;
+        const deflectY = toPxY(focalOffender.y) + 18;
         const cycle = (realSec * Math.max(0.6, speedRef.current)) % 1;
         if (cycle < 0.65) {
           const p = cycle / 0.65;
@@ -713,18 +758,18 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
         }
       }
 
-      drawPixelSoccerBall(ctx, renderedBallX, renderedBallY, 10.5, realSec * 6 * speedRef.current);
+      drawPixelSoccerBall(ctx, renderedBallX, renderedBallY, 7.5, realSec * 6 * speedRef.current);
 
       ctx.restore();
 
       // =======================================================================
-      // 5. SCREEN-SPACE CLOSE-UP CHIBI ACTION INSET (Tailored to Each Play!)
+      // 5. SCREEN-SPACE CLOSE-UP CHIBI ACTION INSET (Positioned above Left Goal so GK #1 is 100% visible!)
       // =======================================================================
       if (showCloseUpInset) {
-        const boxW = 368;
-        const boxH = 180;
+        const boxW = 352;
+        const boxH = 150;
         const boxX = 16;
-        const boxY = 180;
+        const boxY = 104;
 
         ctx.save();
         ctx.fillStyle = '#09090B';
@@ -743,11 +788,11 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
         }
 
         ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(boxX, boxY + 42);
-        ctx.lineTo(boxX + 230, boxY + 42);
-        ctx.lineTo(boxX + 295, boxY + 4);
+        ctx.moveTo(boxX, boxY + 38);
+        ctx.lineTo(boxX + 220, boxY + 38);
+        ctx.lineTo(boxX + 280, boxY + 4);
         ctx.stroke();
 
         const closeUpTitle = isHandball
@@ -761,22 +806,22 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           : `🔍 DOGSO CLOSE-UP CAM · #${offId} SLIDE FROM BEHIND`;
 
         ctx.fillStyle = '#09090B';
-        ctx.fillRect(boxX + 8, boxY + 6, boxW - 16, 26);
+        ctx.fillRect(boxX + 8, boxY + 5, boxW - 16, 24);
         ctx.fillStyle = '#FFFBEB';
-        ctx.fillRect(boxX + 11, boxY + 9, boxW - 22, 20);
+        ctx.fillRect(boxX + 11, boxY + 8, boxW - 22, 18);
         ctx.fillStyle = '#1E1B4B';
-        ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
+        ctx.font = '800 10.5px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(closeUpTitle, boxX + 18, boxY + 23);
+        ctx.fillText(closeUpTitle, boxX + 16, boxY + 21);
 
         const groundY = boxY + boxH - 18;
 
         if (isHandball) {
           // HANDBALL CLOSE-UP: Shooter #10 fires shot -> Ball hits Defender #20's 95° outstretched arm!
           drawChibiPixelCharacter(ctx, {
-            x: boxX + 74,
+            x: boxX + 68,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#DC2626',
             shortsColor: '#18181B',
             socksColor: '#DC2626',
@@ -790,14 +835,14 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           });
 
           // Shot trajectory line to #20's outstretched hand
-          const defX = boxX + 232;
-          const handHitX = defX - 46;
-          const handHitY = groundY - 47;
+          const defX = boxX + 218;
+          const handHitX = defX - 38;
+          const handHitY = groundY - 38;
           ctx.setLineDash([5, 4]);
           ctx.strokeStyle = '#FACC15';
           ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.moveTo(boxX + 95, groundY - 22);
+          ctx.moveTo(boxX + 86, groundY - 18);
           ctx.lineTo(handHitX, handHitY);
           ctx.stroke();
           ctx.setLineDash([]);
@@ -805,7 +850,7 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           drawChibiPixelCharacter(ctx, {
             x: defX,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#1E293B',
             shortsColor: '#FFFFFF',
             socksColor: '#1E3A8A',
@@ -819,13 +864,13 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           });
 
           // Soccer ball striking right on #20's outstretched hand!
-          drawPixelSoccerBall(ctx, handHitX, handHitY, 11.5, realSec * 5);
+          drawPixelSoccerBall(ctx, handHitX, handHitY, 10, realSec * 5);
         } else if (isSimulationDive) {
           // SIMULATION CLOSE-UP: Defender #19 stands 1.4m back while #11 swan-dives mid-air!
           drawChibiPixelCharacter(ctx, {
-            x: boxX + 78,
+            x: boxX + 72,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#1E293B',
             shortsColor: '#FFFFFF',
             socksColor: '#1E3A8A',
@@ -843,19 +888,19 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           ctx.strokeStyle = '#38BDF8';
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.moveTo(boxX + 104, groundY - 35);
-          ctx.lineTo(boxX + 218, groundY - 35);
+          ctx.moveTo(boxX + 98, groundY - 30);
+          ctx.lineTo(boxX + 206, groundY - 30);
           ctx.stroke();
           ctx.setLineDash([]);
           ctx.fillStyle = '#FEF08A';
-          ctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
+          ctx.font = '800 9.5px "Plus Jakarta Sans", sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('1.4m NO CONTACT', boxX + 162, groundY - 42);
+          ctx.fillText('1.4m NO CONTACT', boxX + 152, groundY - 36);
 
           drawChibiPixelCharacter(ctx, {
-            x: boxX + 246,
+            x: boxX + 232,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#DC2626',
             shortsColor: '#18181B',
             socksColor: '#DC2626',
@@ -868,14 +913,14 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             label: `#${offId} DIVE!`,
           });
 
-          drawPixelSoccerBall(ctx, boxX + 162, groundY - 12, 11.5, realSec * 2);
+          drawPixelSoccerBall(ctx, boxX + 152, groundY - 10, 10, realSec * 2);
         } else if (isAdvantagePlay) {
           // ADVANTAGE CLOSE-UP: #8 lunges in and trips #10, while the loose ball rolls to #7 sprinting on a 3v2 breakaway!
           const advLunge = Math.sin(realSec * 6) * 4;
           drawChibiPixelCharacter(ctx, {
-            x: boxX + 82 + advLunge,
+            x: boxX + 76 + advLunge,
             y: groundY,
-            scale: 1.1,
+            scale: 0.92,
             shirtColor: '#1E293B',
             shortsColor: '#FFFFFF',
             socksColor: '#1E3A8A',
@@ -889,9 +934,9 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           });
 
           drawChibiPixelCharacter(ctx, {
-            x: boxX + 162,
+            x: boxX + 152,
             y: groundY,
-            scale: 1.1,
+            scale: 0.92,
             shirtColor: '#DC2626',
             shortsColor: '#18181B',
             socksColor: '#DC2626',
@@ -904,11 +949,11 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             label: `#${vicId} TRIPPED`,
           });
 
-          const wingerRunX = boxX + 244 + ((realSec * 16) % 18);
+          const wingerRunX = boxX + 232 + ((realSec * 16) % 16);
           drawChibiPixelCharacter(ctx, {
             x: wingerRunX,
             y: groundY,
-            scale: 1.12,
+            scale: 0.94,
             shirtColor: '#DC2626',
             shortsColor: '#18181B',
             socksColor: '#DC2626',
@@ -921,13 +966,13 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             label: `#7 3v2 RUN!`,
           });
 
-          drawPixelSoccerBall(ctx, wingerRunX - 24, groundY - 10, 11, realSec * 5);
+          drawPixelSoccerBall(ctx, wingerRunX - 20, groundY - 9, 9.5, realSec * 5);
         } else if (isShirtPull) {
           // SHIRT PULL CLOSE-UP: #7 sprinting while #13 grabs his red shirt with both hands!
           drawChibiPixelCharacter(ctx, {
-            x: boxX + 115,
+            x: boxX + 108,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#DC2626',
             shortsColor: '#18181B',
             socksColor: '#DC2626',
@@ -941,9 +986,9 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           });
 
           drawChibiPixelCharacter(ctx, {
-            x: boxX + 215,
+            x: boxX + 204,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#1E293B',
             shortsColor: '#FFFFFF',
             socksColor: '#1E3A8A',
@@ -956,7 +1001,7 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
             label: `#${offId} GRAB`,
           });
 
-          drawPixelSoccerBall(ctx, boxX + 70, groundY - 12, 11.5, realSec * 3);
+          drawPixelSoccerBall(ctx, boxX + 64, groundY - 10, 10, realSec * 3);
         } else {
           // PLAY 1 DOGSO CLOSE-UP: Continuous slow-motion replay of #4 lunging into #9's ankle and tripping #9 forward!
           const closeCycle = (realSec * Math.max(0.6, speedRef.current) * 0.55) % 1;
@@ -964,19 +1009,19 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           const slideProgress = isCloseTackle
             ? Math.min(1, (closeCycle >= 0.22 ? (closeCycle - 0.22) / 0.25 : 1))
             : closeCycle / 0.22;
-          const lungeOsc = isCloseTackle ? Math.sin(realSec * 7) * 4 : 0;
+          const lungeOsc = isCloseTackle ? Math.sin(realSec * 7) * 3.5 : 0;
 
           const defCloseX = isCloseTackle
-            ? boxX + 96 + slideProgress * 22 + lungeOsc
-            : boxX + 58 + slideProgress * 36;
+            ? boxX + 88 + slideProgress * 20 + lungeOsc
+            : boxX + 54 + slideProgress * 32;
           const attCloseX = isCloseTackle
-            ? boxX + 194 + slideProgress * 8 + Math.max(0, lungeOsc * 0.6)
-            : boxX + 148 + slideProgress * 42;
+            ? boxX + 180 + slideProgress * 8 + Math.max(0, lungeOsc * 0.6)
+            : boxX + 138 + slideProgress * 38;
 
           drawChibiPixelCharacter(ctx, {
             x: defCloseX,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#1E293B',
             shortsColor: '#FFFFFF',
             socksColor: '#1E3A8A',
@@ -993,7 +1038,7 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
           drawChibiPixelCharacter(ctx, {
             x: attCloseX,
             y: groundY,
-            scale: 1.15,
+            scale: 0.95,
             shirtColor: '#DC2626',
             shortsColor: '#18181B',
             socksColor: '#DC2626',
@@ -1008,18 +1053,18 @@ export const TacticalPitchCanvas: React.FC<TacticalPitchCanvasProps> = ({
 
           drawPixelSoccerBall(
             ctx,
-            isCloseTackle ? boxX + 268 : attCloseX + 26,
-            groundY - 12,
-            11.5,
+            isCloseTackle ? boxX + 248 : attCloseX + 22,
+            groundY - 10,
+            10,
             realSec * 4
           );
         }
 
         // Your Custom Chibi Referee on the right of the Close-Up Cam
         drawChibiPixelCharacter(ctx, {
-          x: boxX + 344,
+          x: boxX + 324,
           y: groundY,
-          scale: 1.15,
+          scale: 0.95,
           shirtColor: refKitHex,
           shortsColor: '#09090B',
           socksColor: '#09090B',
